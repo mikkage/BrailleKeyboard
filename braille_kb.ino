@@ -1,4 +1,3 @@
-
 //mux variables
 int input = 5;   // digital input to arduino from mux
 //int strobe=0;   //digital outputs to control mux  
@@ -24,8 +23,8 @@ int b_bin[]={LOW,LOW,HIGH,HIGH,LOW,LOW,HIGH,HIGH};
 int a_bin[]={LOW,HIGH,LOW,HIGH,LOW,HIGH,LOW,HIGH};
 
 //aux
-int contador=0;
-int entrada=0;
+int counter=0 //no more mexi talk!;
+int enter=0;
 int a_val=0;
 int b_val=0;
 int c_val=0;
@@ -161,31 +160,27 @@ void setup() {
 void loop() {
   bool allZero = true;
   int letter = 0;
-  for(entrada=0;entrada<8;entrada++) {
+  for(enter=0;enter<8;enter++) {
 
     //select mux input
-    a_val=a_bin[entrada];
-    b_val=b_bin[entrada];
-    c_val=c_bin[entrada];
+    a_val=a_bin[enter];
+    b_val=b_bin[enter];
+    c_val=c_bin[enter];
 
     digitalWrite(a,a_val);
     digitalWrite(b,b_val);
     digitalWrite(c,c_val);
 
-    //strobe LOW to read
-    //digitalWrite(strobe,LOW);
-
     //read value
-    val[entrada] = digitalRead(input);  // read input value
-    if(val[entrada] != 0)
+    val[enter] = digitalRead(input);  // read input value
+    if(val[enter] != 0)
     {
       storingInput = true;
-      valsStored[entrada] = 1;
+      valsStored[enter] = 1;
       allZero = false;
     }
-    //strobe HIGH to avoid jitters
-    //digitalWrite(strobe,HIGH);
   }
+  
   
   if(allZero && storingInput)
   {    
@@ -310,8 +305,8 @@ void loop() {
   //serial printing
   Serial.print('A');
   delay(100);
-  for(contador=0;contador<=7;contador++) {
-    Serial.print(val[contador]);
+  for(counter=0;counter<=7;counter++) {
+    Serial.print(val[counter]);
     delay(100);
   }
   Serial.println();
