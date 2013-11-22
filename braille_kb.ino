@@ -161,7 +161,7 @@ void setup() {
 void loop() {
   bool allZero = true;
   int letter = 0;
-  for(entrada=0;entrada<=5;entrada++) {
+  for(entrada=0;entrada<8;entrada++) {
 
     //select mux input
     a_val=a_bin[entrada];
@@ -322,7 +322,7 @@ int binToInt(int valStore[8])
 {
  int index = 0;
  int multiplier = 1;
- for(int i = 0; i <= 5; i++)
+ for(int i = 0; i < 8; i++)
  {
    if(valStore[i] == 1)
      index += multiplier;
