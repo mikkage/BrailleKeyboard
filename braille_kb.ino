@@ -6,6 +6,8 @@ int c=4;
 int b=3;
 int a=2;
 
+int caseIndex = 0;            //variable to keep track of the current case. 0 - lowercase, 1 - uppercase, 2 - numbers
+
 bool storingInput = false;
 
 // to store the values from mux
@@ -158,6 +160,7 @@ void setup() {
 
 void loop() {
   bool allZero = true;
+  int letter = 0;
   for(entrada=0;entrada<=5;entrada++) {
 
     //select mux input
@@ -183,14 +186,26 @@ void loop() {
     //strobe HIGH to avoid jitters
     //digitalWrite(strobe,HIGH);
   }
+  
   if(allZero && storingInput)
-  {
-      //check for backspace or space signals first.
+  {    
+      letter = binToInt(valsStored);
       
+      //check for case change
+      if(letter == 48)  //lowercase
+        caseIndex = 0;
+      else if(letter == 32)  //uppercase
+        caseIndex = 1;
+      else if(letter == 60)  //number
+        caseIndex = 2;
+        
+      //now check for backspace or space
+      //for now, assuming backspace is the 7th button and space is the 8th
+      else if(letter == 64)
+        Serial.print('\b');  //backspace override character, might have to change it to work with led screen library
+      else if(letter == 128)
+        Serial.print(' ');
       
-     //use values in valsPressed to get the character to display. 
-     //int index = binToInt();       //convert six signals to an int to access arrays.
-     
      //******letters******
      if(valsStored[0] && !valsStored[1] && !valsStored[2] && !valsStored[3] && !valsStored[4] && !valsStored[5])
        Serial.print('a');
@@ -277,12 +292,6 @@ void loop() {
      else if(!valsStored[0] && !valsStored[1] && valsStored[2] && !valsStored[3] && !valsStored[4] && valsStored[5])
        Serial.print('-');
      
-     //*****Case and number
-     //uppercase
-     //lowercase
-     //numericals
-       
-     
      //*****No case has matched, assume invalid input and don't print anything.
        else 
        Serial.print("not a valid character/not implemented yet");
@@ -294,6 +303,7 @@ void loop() {
      {
        valsStored[i] = 0; 
      }
+     letter = 0;  //reset letter
   }
 
 
