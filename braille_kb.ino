@@ -1,3 +1,5 @@
+#include "LiquidCrystal595.h"
+#include <SPI.h>
 //mux variables
 int input = 5;   // digital input to arduino from mux
 //int strobe=0;   //digital outputs to control mux  
@@ -23,7 +25,7 @@ int b_bin[]={LOW,LOW,HIGH,HIGH,LOW,LOW,HIGH,HIGH};
 int a_bin[]={LOW,HIGH,LOW,HIGH,LOW,HIGH,LOW,HIGH};
 
 //aux
-int counter=0 //no more mexi talk!;
+int counter=0; //no more mexi talk!;
 int enter=0;
 int a_val=0;
 int b_val=0;
