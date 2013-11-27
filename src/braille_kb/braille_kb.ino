@@ -10,9 +10,12 @@ int latch = 10;
 int data = 11;
 int clock = 13;
 LiquidCrystal lcd(latch);
+int numOfChars = 0;  //keep track of number of alphabetical characters currently being displayed
+int numOfBChars = 0;  //keep track of number of braille characters being displayed on the lcd.
 
 char alpha[20]; //array that will hold alphabetical characters to be printed on screen
 
+//output pins
 int c=4;
 int b=3;
 int a=2;
@@ -23,7 +26,8 @@ bool storingInput = false;
 
 // to store the values from mux
 int val[] = {0,0,0,0,0,0,0,0}; 
-int valsStored[8] = {0,0,0,0,0,0,0,0}; 
+int valsStored[8] = {0,0,0,0,0,0,0,0};   //stores all of the buttons that have been pressed at some point before they are all released again.
+
 char characters[3][64];  //2d array to store characters.
                          //[0][64] will contain lowercase letters
                          //[1][64] will contain uppercase letters
@@ -90,8 +94,7 @@ void setup() {
   characters[0][45] = 'x';
   characters[0][61] = 'y';
   characters[0][53] = 'z';
-  
-  
+
   //set up uppercase characters
   characters[1][1] = 'A';
   characters[1][3] = 'B';
@@ -198,8 +201,7 @@ void loop() {
     }
   }
   
-  
-  if(allZero && storingInput)
+  if(allZero && storingInput)  //all buttons have been released after being pressed, so we can interepret the input now
   {    
       letter = binToInt(valsStored);
       
@@ -213,19 +215,49 @@ void loop() {
         
       //now check for backspace or space
       //for now, assuming backspace is the 7th button and space is the 8th
-      else if(letter == 64)
-        Serial.print('\b');  //backspace override character, might have to change it to work with led screen library
-      else if(letter == 128)
-        Serial.print(' ');
+      else if(letter == 64)  //backspace
+      {
+        if(numOfChars > 0)
+        {
+           numOfChars--;
+           alpha[numOfChars] = ' '; 
+           //do the same for braille character string
+        }
+      }
+      else if(letter == 128)  //space
+      {
+          alpha[numOfChars] = ' ';
+          numOfChars++;
+      }
+      else  //not a space, backspace, or case/number changer, then it is a character
+      {
+        if(characters[caseIndex][letter] != NULL)  //make sure it's a valid letter
+        {
+          if(numOfChars < 19)
+          {
+            alpha[numOfChars] = characters[caseIndex][letter];
+            numOfChars++;
+          }
+          else
+          {
+           for(int i = 0; i < 20; i++)  //shift all down one
+           {         
+             alpha[i] = alpha[i+1];  
+           }
+           alpha[numOfChars] = characters[caseIndex][letter];
+          }
+        } 
+      }
      
      lcd.setCursor(0,0);
-     lcd.print(alpha);
-     //lcd.print(alphabet characters)
-     lcd.setCursor(0,1);
+     lcd.print(alpha);  //print alphabet characters
+     
+     //lcd.setCursor(0,1);
      //lcd.print(braille characters) 
       
+     //reset control, value stored array, and integer value to index into character array
      storingInput = false;
-     for(int i = 0; i < 6; i++)
+     for(int i = 0; i < 8; i++)
      {
        valsStored[i] = 0; 
      }
@@ -233,7 +265,7 @@ void loop() {
   }
 }
 
-int binToInt(int valStore[8])
+int binToInt(int valStore[8])  //converts the 8 inputs from the mux into an integer
 {
  int index = 0;
  int multiplier = 1;
