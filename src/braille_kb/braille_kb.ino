@@ -19,6 +19,7 @@ bool pressed = false; // indicates a button is pressed
 
 
 char alpha[16]; //array that will hold alphabetical characters to be printed on screen
+char alpha2[16]; //array to store characters on line 2
 
 int caseIndex = 0; //variable to keep track of the current case. 0 - lowercase, 1 - uppercase, 2 - numbers
 
@@ -55,7 +56,10 @@ void setup() {
   lcd.begin(16,2);  //set up lcd with 16 columns and 2 rows
   
   for(int i = 0; i < 16;i++)  //initialize character array to all spaces(blank)
+  {
     alpha[i] = ' ';
+    alpha2[i] = ' ';
+  }
   
   //Set up blank arrays
   for(int i = 0; i < 3; i++)
@@ -238,8 +242,8 @@ void loop() {
   */
 
   /***** decode *****/  
-
   letter = binToInt(valsStored);
+  
   if(letter)
   {
   //check for case change
@@ -250,35 +254,41 @@ void loop() {
   else if(letter == 60) // number
     caseIndex = 2;
      
-    else  //not a space, backspace, or case/number changer, then it is a character
+    else  //not a case/number changer, then it is a character
     {
       if(characters[caseIndex][letter] != NULL)  //make sure it's a valid letter
       {
-      if(numOfChars <= 15)
+      if(numOfChars <= 15)  //less than 16 characters, print on first line
       {
         alpha[numOfChars] = characters[caseIndex][letter];
         numOfChars++;
       }
-      else
+      else if(numOfChars >= 16 && numOfChars < 32)  //more than 16, but less than 32 characters, print on second line.
       {
-      for(int i = 0; i < 16; i++)  //shift all down one
-      {         
-        alpha[i] = alpha[i+1];  
+        alpha2[numOfChars-16] = characters[caseIndex][letter];
+        numOfChars++;
       }
-      numOfChars = 16;
-      alpha[numOfChars-1] = characters[caseIndex][letter];
+      else  //else, 32 characters or more. have to shift all characters left before inserting at end.
+      {
+      shiftChars();  //shift all characters
+      numOfChars = 32;
+      alpha[numOfChars-1] = characters[caseIndex][letter];  //insert new character at end of second array.
       }
     }
     } 
   }
   /***** reset *****/
   lcd.setCursor(0,0);
-  lcd.print(alpha);  // print alphabet characters
+  lcd.print(alpha);  // print first line
+  
+  lcd.setCursor(0,1);
+  lcd.print(alpha2); //print second line
+  
   clearValsStored(); // reset valsStored
   letter = 0; // reset letter  
 }
 
-int binToInt(int valStore[8])  //converts the 8 inputs from the mux into an integer
+int binToInt(int valStore[8])  //converts the 6 inputs from the mux into an integer
 {
  int index = 0;
  int multiplier = 1;
@@ -289,4 +299,18 @@ int binToInt(int valStore[8])  //converts the 8 inputs from the mux into an inte
    multiplier *= 2;
  }
  return index; 
+}
+
+//shifts all of the characters in both character arrays left once. only needs to be called when both lines are full and there's another character input.
+void shiftChars()
+{
+  for(int i = 0; i < 15; i++)  //shift first row
+  {
+    alpha[i] = alpha[i+1];
+  }
+  alpha[15] = alpha2[0];
+  for(int i = 0; i < 15; i++)
+  {
+   alpha2[i] = alpha2[i+1]; 
+  }
 }
