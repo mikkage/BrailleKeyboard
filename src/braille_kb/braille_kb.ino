@@ -18,13 +18,11 @@ int valsStored[] = {0,0,0,0,0,0};
 bool pressed = false; // indicates a button is pressed
 
 
-char alpha[20]; //array that will hold alphabetical characters to be printed on screen
+char alpha[16]; //array that will hold alphabetical characters to be printed on screen
 
 int caseIndex = 0; //variable to keep track of the current case. 0 - lowercase, 1 - uppercase, 2 - numbers
 
-
 int numOfChars = 0;  //keep track of number of alphabetical characters currently being displayed
-int numOfBChars = 0;  //keep track of number of braille characters being displayed on the lcd.
 
 char characters[3][64];  //2d array to store characters.
                          //[0][64] will contain lowercase letters
@@ -47,15 +45,16 @@ void setup() {
 
   Serial.begin(9600);
   pinMode(input, INPUT);    
-  //pinMode(strobe, OUTPUT);
   pinMode(c, OUTPUT);
   pinMode(b, OUTPUT);
   pinMode(a, OUTPUT);
+  pinMode(6, INPUT);
+  pinMode(7, INPUT);
   
   lcd.setLED2Pin(HIGH);
   lcd.begin(16,2);  //set up lcd with 16 columns and 2 rows
   
-  for(int i = 0; i < 20;i++)  //initialize character array to all spaces(blank)
+  for(int i = 0; i < 16;i++)  //initialize character array to all spaces(blank)
     alpha[i] = ' ';
   
   //Set up blank arrays
@@ -154,11 +153,6 @@ void setup() {
   characters[1][2] = ',';
   characters[2][2] = ',';
   
-  //todo: decide whether ( or ) is used.
-  characters[0][54] = '(';
-  characters[1][54] = '(';
-  characters[2][54] = '(';
-  
   characters[0][38] = '?';
   characters[1][38] = '?';
   characters[2][38] = '?';
@@ -187,11 +181,11 @@ void readBraille() {
     digitalWrite(b, b_val);
     digitalWrite(c, c_val);
 	
-	val[select] = digitalRead(input);
-	if(val[select] == 1){
-	  valsStored[select] = 1;
-	  pressed = true;
-	}
+    val[select] = digitalRead(input);
+    if(val[select] == 1){
+      valsStored[select] = 1;
+      pressed = true;
+  }
 	
   }
   /* DEBUG
@@ -246,8 +240,8 @@ void loop() {
   /***** decode *****/  
 
   letter = binToInt(valsStored);
- 
- 
+  if(letter)
+  {
   //check for case change
   if(letter == 48) // lowercase
     caseIndex = 0;
@@ -255,50 +249,33 @@ void loop() {
     caseIndex = 1;
   else if(letter == 60) // number
     caseIndex = 2;
-        
-    //now check for backspace or space
-    //for now, assuming backspace is the 7th button and space is the 8th
-    else if(letter == 64)  // backspace
-    {
-      if(numOfChars > 0)
-      {
-         numOfChars--;
-         alpha[numOfChars] = ' '; 
-         //do the same for braille character string
-      }
-    }
-    else if(letter == 128)  //space
-    {
-        alpha[numOfChars] = ' ';
-        numOfChars++;
-    }
+     
     else  //not a space, backspace, or case/number changer, then it is a character
     {
       if(characters[caseIndex][letter] != NULL)  //make sure it's a valid letter
       {
-      if(numOfChars < 19)
+      if(numOfChars <= 15)
       {
         alpha[numOfChars] = characters[caseIndex][letter];
         numOfChars++;
       }
       else
       {
-      for(int i = 0; i < 20; i++)  //shift all down one
+      for(int i = 0; i < 16; i++)  //shift all down one
       {         
         alpha[i] = alpha[i+1];  
       }
-      alpha[numOfChars] = characters[caseIndex][letter];
+      numOfChars = 16;
+      alpha[numOfChars-1] = characters[caseIndex][letter];
       }
+    }
     } 
   }
-  
   /***** reset *****/
   lcd.setCursor(0,0);
   lcd.print(alpha);  // print alphabet characters
-     
   clearValsStored(); // reset valsStored
-  letter = 0; // reset letter
-   
+  letter = 0; // reset letter  
 }
 
 int binToInt(int valStore[8])  //converts the 8 inputs from the mux into an integer
