@@ -1,10 +1,48 @@
+/* -----------------------------------------------------------------------------------
+ * $Author: robaby@gmail.com $
+ * $Date: 2012-04-08 23:54:07 +0100 (Sun, 08 Apr 2012) $
+ * $Revision: 4 $
+ * ----------------------------------
+ * 
+ * Full Information:  
+ *    Code and Breadboarding: http://rowansimms.com/article.php/lcd-hookup-in-seconds
+ *    Make your own Shield:   http://rowansimms.com/article.php/lcd-hookup-in-seconds-shield
+ *
+ * Adaption of the LiquidCrystal library shipped with Arduino 22, 
+ * now updated for Arduino 1.0.
+ * Code originally developed by Steve Hobley - February 2011
+ *      updates and maintenance by Rowan Simms   code@rowansimms.com
+ *
+ * Changes Log:
+ * v1.0
+ *    - Now works with Arduino 1.0 (not backwards compatible)
+ *    - Re-ordered Shift Register Pinouts to allow for better prototyping
+ *
+ *
+ * ---Shift Register 74HC595---
+ * [SR Pin 14 (DS)]    to Arduino pin - [datapin]
+ * [SR Pin 12 (ST_CP)] to Arduino pin - [latchpin]
+ * [SR Pin 11 (SH_CP)] to Arduino pin - [clockpin]
+ * Black wire to Ground
+ * Red wire to +5v
+ *
+ * -----Shift Reg to LCD--------
+ * SR Pin 15  - ENABLE        10000000
+ * SR Pin 1   - D7            00000010
+ * SR Pin 2   - D6            00000100
+ * SR Pin 3   - D5            00001000
+ * SR Pin 4   - D4            00010000
+ * SR Pin 5   - MOSFET / LED1 00100000
+ * SR Pin 6   - LED 2         01000000
+ * SR Pin 7   - RS            00000001
+ *
+ * -----------------------------------------------------------------------------------
+ */
 #ifndef LiquidCrystal595_h
 #define LiquidCrystal595_h
 
 #include <inttypes.h>
 #include "Print.h"
-
-#include <SPI.h>
 
 // commands
 #define LCD_CLEARDISPLAY 0x01
@@ -44,25 +82,11 @@
 #define LCD_5x10DOTS 0x04
 #define LCD_5x8DOTS 0x00
 
-class LiquidCrystal : public Print {
+class LiquidCrystal595 : public Print {
 public:
-  LiquidCrystal(uint8_t rs, uint8_t enable,
-		uint8_t d0, uint8_t d1, uint8_t d2, uint8_t d3,
-		uint8_t d4, uint8_t d5, uint8_t d6, uint8_t d7);
-  LiquidCrystal(uint8_t rs, uint8_t rw, uint8_t enable,
-		uint8_t d0, uint8_t d1, uint8_t d2, uint8_t d3,
-		uint8_t d4, uint8_t d5, uint8_t d6, uint8_t d7);
-  LiquidCrystal(uint8_t rs, uint8_t rw, uint8_t enable,
-		uint8_t d0, uint8_t d1, uint8_t d2, uint8_t d3);
-  LiquidCrystal(uint8_t rs, uint8_t enable,
-		uint8_t d0, uint8_t d1, uint8_t d2, uint8_t d3);
-  LiquidCrystal(uint8_t ssPin); //SPI to ShiftRegister 74HC595 ##########
+  LiquidCrystal595(uint8_t datapin, uint8_t latchpin, uint8_t clockpin);
 
-  void init(uint8_t fourbitmode, uint8_t rs, uint8_t rw, uint8_t enable,
-	    uint8_t d0, uint8_t d1, uint8_t d2, uint8_t d3,
-	    uint8_t d4, uint8_t d5, uint8_t d6, uint8_t d7);
-		
-  void initSPI(uint8_t _ssPin); //SPI ##################################
+  void init(uint8_t datapin, uint8_t latchpin, uint8_t clockpin);
     
   void begin(uint8_t cols, uint8_t rows, uint8_t charsize = LCD_5x8DOTS);
 
@@ -86,27 +110,29 @@ public:
   void setCursor(uint8_t, uint8_t); 
   virtual size_t write(uint8_t);
   void command(uint8_t);
+  
+    // Moved to public - to aid with debugging, and other uses for the library etc...
+  void setRSPin(uint8_t pinValue);
+  void setEPin(uint8_t pinValue);
+  void setD4Pin(uint8_t pinValue);
+  void setD5Pin(uint8_t pinValue);
+  void setD6Pin(uint8_t pinValue);
+  void setD7Pin(uint8_t pinValue);
+  void setLED1Pin(uint8_t pinValue);
+  void setLED2Pin(uint8_t pinValue);
+  void shift595();
+  
 private:
   void send(uint8_t, uint8_t);
-  void spiSendOut();      // SPI ###########################################
   void write4bits(uint8_t);
   void write8bits(uint8_t);
   void pulseEnable();
-  
-  
-  uint8_t _rs_pin; // LOW: command.  HIGH: character.
-  uint8_t _rw_pin; // LOW: write to LCD.  HIGH: read from LCD.
-  uint8_t _enable_pin; // activated by a HIGH pulse.
-  uint8_t _data_pins[8];
-  
-  //SPI #####################################################################
-  uint8_t _bitString; //for SPI  bit0=not used, bit1=RS, bit2=RW, bit3=Enable, bits4-7 = DB4-7
-     bool _usingSpi;  //to let send and write functions know we are using SPI 
-  uint8_t _latchPin;
-  uint8_t _clockDivider;
-  uint8_t _dataMode;
-  uint8_t _bitOrder;//SPI ####################################################
-  
+
+  uint8_t _datapin;
+  uint8_t _latchpin;
+  uint8_t _clockpin;
+  char _register; //Stores the current state of the data
+ 
   uint8_t _displayfunction;
   uint8_t _displaycontrol;
   uint8_t _displaymode;

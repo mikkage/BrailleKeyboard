@@ -1,14 +1,61 @@
+/* -----------------------------------------------------------------------------------
+ * $Author: robaby@gmail.com $
+ * $Date: 2012-04-08 23:54:07 +0100 (Sun, 08 Apr 2012) $
+ * $Revision: 4 $
+ * ----------------------------------
+ * 
+ * Full Information:  
+ *    Code and Breadboarding: http://rowansimms.com/article.php/lcd-hookup-in-seconds
+ *    Make your own Shield:   http://rowansimms.com/article.php/lcd-hookup-in-seconds-shield
+ *
+ * Adaption of the LiquidCrystal library shipped with Arduino 22, 
+ * now updated for Arduino 1.0.
+ * Code originally developed by Steve Hobley - February 2011
+ *      updates and maintenance by Rowan Simms   code@rowansimms.com
+ *
+ * Changes Log:
+ * v1.0
+ *    - Now works with Arduino 1.0 (not backwards compatible)
+ *    - Re-ordered Shift Register Pinouts to allow for better prototyping
+ *
+ *
+ * ---Shift Register 74HC595---
+ * [SR Pin 14 (DS)]    to Arduino pin - [datapin]
+ * [SR Pin 12 (ST_CP)] to Arduino pin - [latchpin]
+ * [SR Pin 11 (SH_CP)] to Arduino pin - [clockpin]
+ * Black wire to Ground
+ * Red wire to +5v
+ *
+ * -----Shift Reg to LCD--------
+ * SR Pin 15  - ENABLE        10000000
+ * SR Pin 1   - D7            00000010
+ * SR Pin 2   - D6            00000100
+ * SR Pin 3   - D5            00001000
+ * SR Pin 4   - D4            00010000
+ * SR Pin 5   - MOSFET / LED1 00100000
+ * SR Pin 6   - LED 2         01000000
+ * SR Pin 7   - RS            00000001
+ *
+ * -----------------------------------------------------------------------------------
+ */
+// 595 mappings - LED1 is also the backlight controller
+
+#define ENABLE_PIN  B00000001
+#define RS_PIN		B10000000
+#define LED1_PIN    B00100000
+#define LED2_PIN    B01000000
+#define DATABITS	B00011110
+#define PIN_D4		B00010000
+#define PIN_D5		B00001000
+#define PIN_D6		B00000100
+#define PIN_D7		B00000010
+
 #include "LiquidCrystal595.h"
 
 #include <stdio.h>
 #include <string.h>
 #include <inttypes.h>
-
-#if defined(ARDUINO) && ARDUINO >= 100
-  #include "Arduino.h"
-  #else
-  #include "WProgram.h"
-  #endif
+#include "Arduino.h"
 
 // When the display powers up, it is configured as follows:
 //
@@ -29,108 +76,39 @@
 // can't assume that its in that state when a sketch starts (and the
 // LiquidCrystal constructor is called).
 
-LiquidCrystal::LiquidCrystal(uint8_t rs, uint8_t rw, uint8_t enable,
-			     uint8_t d0, uint8_t d1, uint8_t d2, uint8_t d3,
-			     uint8_t d4, uint8_t d5, uint8_t d6, uint8_t d7)
+LiquidCrystal595::LiquidCrystal595(uint8_t datapin, uint8_t latchpin, uint8_t clockpin)
 {
-  init(0, rs, rw, enable, d0, d1, d2, d3, d4, d5, d6, d7);
+  init(datapin, latchpin, clockpin);
 }
 
-LiquidCrystal::LiquidCrystal(uint8_t rs, uint8_t enable,
-			     uint8_t d0, uint8_t d1, uint8_t d2, uint8_t d3,
-			     uint8_t d4, uint8_t d5, uint8_t d6, uint8_t d7)
+// Performs the shift, MSB first 
+void LiquidCrystal595::shift595()
 {
-  init(0, rs, 255, enable, d0, d1, d2, d3, d4, d5, d6, d7);
+    digitalWrite(_latchpin, LOW);
+    shiftOut(_datapin, _clockpin, MSBFIRST, _register);  
+    digitalWrite(_latchpin, HIGH);
 }
 
-LiquidCrystal::LiquidCrystal(uint8_t rs, uint8_t rw, uint8_t enable,
-			     uint8_t d0, uint8_t d1, uint8_t d2, uint8_t d3)
+void LiquidCrystal595::init(uint8_t datapin, uint8_t latchpin, uint8_t clockpin)
 {
-  init(1, rs, rw, enable, d0, d1, d2, d3, 0, 0, 0, 0);
-}
+  _datapin  = datapin;
+  _latchpin = latchpin;
+  _clockpin = clockpin;
 
-LiquidCrystal::LiquidCrystal(uint8_t rs,  uint8_t enable,
-			     uint8_t d0, uint8_t d1, uint8_t d2, uint8_t d3)
-{
-  init(1, rs, 255, enable, d0, d1, d2, d3, 0, 0, 0, 0);
-}
-
-LiquidCrystal::LiquidCrystal(uint8_t ssPin) //SPI  ##############################
-{
-  initSPI(ssPin);
-  //shiftRegister pins 1,2,3,4,5,6,7 represent rs, rw, enable, d4-7 in that order
-  //but we are not using RW so RW it's zero or 255
-  init(1, 1, 255, 3, 0, 0, 0, 0, 4, 5, 6, 7);   
-}
-
-void LiquidCrystal::init(uint8_t fourbitmode, uint8_t rs, uint8_t rw, uint8_t enable,
-			 uint8_t d0, uint8_t d1, uint8_t d2, uint8_t d3,
-			 uint8_t d4, uint8_t d5, uint8_t d6, uint8_t d7)
-{
-  _rs_pin = rs;
-  _rw_pin = rw;
-  _enable_pin = enable;
+   pinMode(_datapin, OUTPUT);
+   pinMode(_latchpin, OUTPUT);
+   pinMode(_clockpin, OUTPUT);
+   
+   _displayfunction = LCD_4BITMODE | LCD_1LINE | LCD_5x8DOTS;
   
-  _data_pins[0] = d0;
-  _data_pins[1] = d1;
-  _data_pins[2] = d2;
-  _data_pins[3] = d3; 
-  _data_pins[4] = d4;
-  _data_pins[5] = d5;
-  _data_pins[6] = d6;
-  _data_pins[7] = d7; 
+  begin(16, 1);  
+}
 
-  pinMode(_rs_pin, OUTPUT);
-  // we can save 1 pin by not using RW. Indicate by passing 255 instead of pin#
-  if (_rw_pin != 255) { 
-    pinMode(_rw_pin, OUTPUT);
-  }
-  pinMode(_enable_pin, OUTPUT);
+void LiquidCrystal595::begin(uint8_t cols, uint8_t lines, uint8_t dotsize) 
+{
   
-  if (fourbitmode)
-    _displayfunction = LCD_4BITMODE | LCD_1LINE | LCD_5x8DOTS;
-  else 
-    _displayfunction = LCD_8BITMODE | LCD_1LINE | LCD_5x8DOTS;
-  
-  begin(16, 1);
-  
-  //since in initSPI constructor we set _usingSPI to true and we run it first
-  //from SPI constructor, we do nothing here otherwise we set it to false
-  if (_usingSpi) //SPI ######################################################
+  if (lines > 1) 
   {
-    ;
-  }
-  else
-  {
-    _usingSpi = false;
-  }	
-}
-
-void LiquidCrystal::initSPI(uint8_t ssPin) //SPI ##########################################
-{
-    // initialize SPI:
-	_usingSpi = true;
-	_latchPin = ssPin;
-	pinMode (_latchPin, OUTPUT); //just in case _latchPin is not 10 or 53 set it to output 
-								 //otherwise SPI.begin() will set it to output but just in case
-		
-	SPI.begin(); 
-	
-	//set clockDivider to SPI_CLOCK_DIV2 by default which is 8MHz
-	_clockDivider = SPI_CLOCK_DIV2;
-	SPI.setClockDivider(_clockDivider);
-	
-	//set data mode to SPI_MODE0 by default
-	_dataMode = SPI_MODE0;
-	SPI.setDataMode(_dataMode);
-	
-	//set bitOrder to MSBFIRST by default
-	_bitOrder = MSBFIRST; 
-	SPI.setBitOrder(_bitOrder);
-}
-
-void LiquidCrystal::begin(uint8_t cols, uint8_t lines, uint8_t dotsize) {
-  if (lines > 1) {
     _displayfunction |= LCD_2LINE;
   }
   _numlines = lines;
@@ -146,14 +124,21 @@ void LiquidCrystal::begin(uint8_t cols, uint8_t lines, uint8_t dotsize) {
   // before sending commands. Arduino can turn on way befer 4.5V so we'll wait 50
   delayMicroseconds(50000); 
   // Now we pull both RS and R/W low to begin commands
-  digitalWrite(_rs_pin, LOW);
-  digitalWrite(_enable_pin, LOW);
-  if (_rw_pin != 255) { 
-    digitalWrite(_rw_pin, LOW);
-  }
+  
+  setRSPin(LOW);
+  setEPin(LOW);
+  shift595();
+  
+  //digitalWrite(_rs_pin, LOW);
+  //digitalWrite(_enable_pin, LOW);
+  
+  //if (_rw_pin != 255) { 
+  //  digitalWrite(_rw_pin, LOW);
+  //}
   
   //put the LCD into 4 bit or 8 bit mode
-  if (! (_displayfunction & LCD_8BITMODE)) {
+  if (! (_displayfunction & LCD_8BITMODE)) 
+  {
     // this is according to the hitachi HD44780 datasheet
     // figure 24, pg 46
 
@@ -205,19 +190,19 @@ void LiquidCrystal::begin(uint8_t cols, uint8_t lines, uint8_t dotsize) {
 }
 
 /********** high level commands, for the user! */
-void LiquidCrystal::clear()
+void LiquidCrystal595::clear()
 {
   command(LCD_CLEARDISPLAY);  // clear display, set cursor position to zero
   delayMicroseconds(2000);  // this command takes a long time!
 }
 
-void LiquidCrystal::home()
+void LiquidCrystal595::home()
 {
   command(LCD_RETURNHOME);  // set cursor position to zero
   delayMicroseconds(2000);  // this command takes a long time!
 }
 
-void LiquidCrystal::setCursor(uint8_t col, uint8_t row)
+void LiquidCrystal595::setCursor(uint8_t col, uint8_t row)
 {
   int row_offsets[] = { 0x00, 0x40, 0x14, 0x54 };
   if ( row > _numlines ) {
@@ -228,70 +213,70 @@ void LiquidCrystal::setCursor(uint8_t col, uint8_t row)
 }
 
 // Turn the display on/off (quickly)
-void LiquidCrystal::noDisplay() {
+void LiquidCrystal595::noDisplay() {
   _displaycontrol &= ~LCD_DISPLAYON;
   command(LCD_DISPLAYCONTROL | _displaycontrol);
 }
-void LiquidCrystal::display() {
+void LiquidCrystal595::display() {
   _displaycontrol |= LCD_DISPLAYON;
   command(LCD_DISPLAYCONTROL | _displaycontrol);
 }
 
 // Turns the underline cursor on/off
-void LiquidCrystal::noCursor() {
+void LiquidCrystal595::noCursor() {
   _displaycontrol &= ~LCD_CURSORON;
   command(LCD_DISPLAYCONTROL | _displaycontrol);
 }
-void LiquidCrystal::cursor() {
+void LiquidCrystal595::cursor() {
   _displaycontrol |= LCD_CURSORON;
   command(LCD_DISPLAYCONTROL | _displaycontrol);
 }
 
 // Turn on and off the blinking cursor
-void LiquidCrystal::noBlink() {
+void LiquidCrystal595::noBlink() {
   _displaycontrol &= ~LCD_BLINKON;
   command(LCD_DISPLAYCONTROL | _displaycontrol);
 }
-void LiquidCrystal::blink() {
+void LiquidCrystal595::blink() {
   _displaycontrol |= LCD_BLINKON;
   command(LCD_DISPLAYCONTROL | _displaycontrol);
 }
 
 // These commands scroll the display without changing the RAM
-void LiquidCrystal::scrollDisplayLeft(void) {
+void LiquidCrystal595::scrollDisplayLeft(void) {
   command(LCD_CURSORSHIFT | LCD_DISPLAYMOVE | LCD_MOVELEFT);
 }
-void LiquidCrystal::scrollDisplayRight(void) {
+void LiquidCrystal595::scrollDisplayRight(void) {
   command(LCD_CURSORSHIFT | LCD_DISPLAYMOVE | LCD_MOVERIGHT);
 }
 
 // This is for text that flows Left to Right
-void LiquidCrystal::leftToRight(void) {
+void LiquidCrystal595::leftToRight(void) {
   _displaymode |= LCD_ENTRYLEFT;
   command(LCD_ENTRYMODESET | _displaymode);
 }
 
 // This is for text that flows Right to Left
-void LiquidCrystal::rightToLeft(void) {
+void LiquidCrystal595::rightToLeft(void) {
   _displaymode &= ~LCD_ENTRYLEFT;
   command(LCD_ENTRYMODESET | _displaymode);
 }
 
 // This will 'right justify' text from the cursor
-void LiquidCrystal::autoscroll(void) {
+void LiquidCrystal595::autoscroll(void) {
   _displaymode |= LCD_ENTRYSHIFTINCREMENT;
   command(LCD_ENTRYMODESET | _displaymode);
 }
 
 // This will 'left justify' text from the cursor
-void LiquidCrystal::noAutoscroll(void) {
+void LiquidCrystal595::noAutoscroll(void) {
   _displaymode &= ~LCD_ENTRYSHIFTINCREMENT;
   command(LCD_ENTRYMODESET | _displaymode);
 }
 
 // Allows us to fill the first 8 CGRAM locations
 // with custom characters
-void LiquidCrystal::createChar(uint8_t location, uint8_t charmap[]) {
+void LiquidCrystal595::createChar(uint8_t location, uint8_t charmap[]) {
   location &= 0x7; // we only have 8 locations 0-7
   command(LCD_SETCGRAMADDR | (location << 3));
   for (int i=0; i<8; i++) {
@@ -301,110 +286,169 @@ void LiquidCrystal::createChar(uint8_t location, uint8_t charmap[]) {
 
 /*********** mid level commands, for sending data/cmds */
 
-inline void LiquidCrystal::command(uint8_t value) {
+inline void LiquidCrystal595::command(uint8_t value) {
   send(value, LOW);
 }
 
-inline size_t LiquidCrystal::write(uint8_t value) {
+inline size_t LiquidCrystal595::write(uint8_t value) {
   send(value, HIGH);
-  return 1; // assume sucess
 }
 
 /************ low level data pushing commands **********/
 
 // write either command or data, with automatic 4/8-bit selection
-void LiquidCrystal::send(uint8_t value, uint8_t mode) {
-  if (_usingSpi == false)
-  {
-    digitalWrite(_rs_pin, mode);
-
-    // if there is a RW pin indicated, set it low to Write
-    if (_rw_pin != 255) { 
-      digitalWrite(_rw_pin, LOW);
-    }
-    
-    if (_displayfunction & LCD_8BITMODE) {
-      write8bits(value); 
-    } else {
-      write4bits(value>>4);
-      write4bits(value);
-    }
-  }
-  else //we use SPI  ##########################################
-  {
-    bitWrite(_bitString, _rs_pin, mode); //set RS to mode
-    spiSendOut();
-    
-	//we are not using RW with SPI so we are not even bothering
-	//or 8BITMODE so we go straight to write4bits
-    write4bits(value>>4);
-    write4bits(value);    
-  }
-}
-
-void LiquidCrystal::pulseEnable(void) {
-  if (_usingSpi == false)
-  {
-    digitalWrite(_enable_pin, LOW);
-    delayMicroseconds(1);    
-    digitalWrite(_enable_pin, HIGH);
-    delayMicroseconds(1);    // enable pulse must be >450ns
-    digitalWrite(_enable_pin, LOW);
-    delayMicroseconds(100);   // commands need > 37us to settle
-  }
-  else //we use SPI #############################################
-  {
-    bitWrite(_bitString, _enable_pin, LOW); 
-    spiSendOut();
-	delayMicroseconds(1); 
-	bitWrite(_bitString, _enable_pin, HIGH); 
-    spiSendOut();
-	delayMicroseconds(1);    // enable pulse must be >450ns
-	bitWrite(_bitString, _enable_pin, LOW); 
-    spiSendOut();
-	delayMicroseconds(40);   // commands need > 37us to settle
-  }
-}
-
-void LiquidCrystal::write4bits(uint8_t value) {
-  if (_usingSpi == false)
-  {
-    for (int i = 0; i < 4; i++) {
-      pinMode(_data_pins[i], OUTPUT);
-      digitalWrite(_data_pins[i], (value >> i) & 0x01);
-    }
-  }
-  else //we use SPI ##############################################
-  {
-    for (int i = 4; i < 8; i++)
-	{
-	  //we put the four bits in the _bit_string
-	  bitWrite(_bitString, i, ((value >> (i - 4)) & 0x01)); 
-	}
-	//and send it out
-	spiSendOut();
-  }
-  pulseEnable();
-}
-
-void LiquidCrystal::write8bits(uint8_t value) {
-  for (int i = 0; i < 8; i++) {
-    pinMode(_data_pins[i], OUTPUT);
-    digitalWrite(_data_pins[i], (value >> i) & 0x01);
-  }
-  
-  pulseEnable();
-}
-
-void LiquidCrystal::spiSendOut() //SPI #############################
+void LiquidCrystal595::send(uint8_t value, uint8_t mode) 
 {
-  //just in case you are using SPI for more then one device
-  //set bitOrder, clockDivider and dataMode each time
-  SPI.setClockDivider(_clockDivider); 
-  SPI.setBitOrder(_bitOrder);
-  SPI.setDataMode(_dataMode); 
+  setRSPin(mode);
+  shift595();
   
-  digitalWrite(_latchPin, LOW);
-  SPI.transfer(_bitString);
-  digitalWrite(_latchPin, HIGH); 
+  //digitalWrite(_rs_pin, mode);
+
+  // if there is a RW pin indicated, set it low to Write
+  //if (_rw_pin != 255) { 
+  //  digitalWrite(_rw_pin, LOW);
+  //}
+  
+  if (_displayfunction & LCD_8BITMODE) 
+  {
+    write8bits(value); 
+  } 
+  else 
+  {
+    write4bits(value>>4);
+    write4bits(value);
+  }
+}
+
+void LiquidCrystal595::pulseEnable(void) 
+{
+   // LOW / HIGH / LOW of ENABLE_PIN
+  setEPin(LOW);   // LOW
+  shift595();
+  
+  delayMicroseconds(1);
+  setEPin(HIGH);    // HIGH
+  shift595();
+  
+  delayMicroseconds(1); // enable pulse must be >450ns
+  
+  setEPin(LOW);   // LOW
+  shift595();
+  delayMicroseconds(100);  // commands need > 37us to settle
+}
+
+void LiquidCrystal595::write4bits(uint8_t value) 
+{
+  int val_nibble= value & 0x0F;  //clean the value.  (unnecessary)
+	
+  setD4Pin(val_nibble & 01);
+  val_nibble >>= 1;
+  setD5Pin(val_nibble & 01);
+  val_nibble >>= 1;
+  setD6Pin(val_nibble & 01);
+  val_nibble >>= 1;
+  setD7Pin(val_nibble & 01);
+  
+  pulseEnable();
+}
+
+void LiquidCrystal595::write8bits(uint8_t value) 
+{
+  return;
+  // Should not be used
+}
+
+// Accessor functions --------------------------------------------------------
+void LiquidCrystal595::setLED1Pin(uint8_t pinValue)
+{
+	if (pinValue == HIGH)
+	{
+		_register |= LED1_PIN;    // HIGH
+	}
+	else
+	{
+		_register &= ~LED1_PIN;   // LOW
+	}
+}
+
+void LiquidCrystal595::setLED2Pin(uint8_t pinValue)
+{
+	if (pinValue == HIGH)
+	{
+		_register |= LED2_PIN;    // HIGH
+	}
+	else
+	{
+		_register &= ~LED2_PIN;   // LOW
+	}
+}
+
+void LiquidCrystal595::setEPin(uint8_t pinValue)
+{
+	if (pinValue == HIGH)
+	{
+		_register |= ENABLE_PIN;    // HIGH
+	}
+	else
+	{
+		_register &= ~ENABLE_PIN;   // LOW
+	}
+}
+
+void LiquidCrystal595::setD4Pin(uint8_t pinValue)
+{
+	if (pinValue == HIGH)
+	{
+		_register |= PIN_D4;    // HIGH
+	}
+	else
+	{
+		_register &= ~PIN_D4;   // LOW
+	}
+}
+
+void LiquidCrystal595::setD5Pin(uint8_t pinValue)
+{
+	if (pinValue == HIGH)
+	{
+		_register |= PIN_D5;    // HIGH
+	}
+	else
+	{
+		_register &= ~PIN_D5;   // LOW
+	}
+}
+void LiquidCrystal595::setD6Pin(uint8_t pinValue)
+{
+	if (pinValue == HIGH)
+	{
+		_register |= PIN_D6;    // HIGH
+	}
+	else
+	{
+		_register &= ~PIN_D6;   // LOW
+	}
+}
+void LiquidCrystal595::setD7Pin(uint8_t pinValue)
+{
+	if (pinValue == HIGH)
+	{
+		_register |= PIN_D7;    // HIGH
+	}
+	else
+	{
+		_register &= ~PIN_D7;   // LOW
+	}
+}
+
+void LiquidCrystal595::setRSPin(uint8_t pinValue)
+{
+	if (pinValue == HIGH)
+	{
+		_register |= RS_PIN;    // HIGH
+	}
+	else
+	{
+		_register &= ~RS_PIN;   // LOW
+	}
 }
